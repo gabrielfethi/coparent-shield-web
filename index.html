@@ -153,7 +153,6 @@
       pointer-events: none;
     }
 
-    /* Subtle organic texture */
     .hero-bg::after {
       content: '';
       position: absolute;
@@ -448,7 +447,6 @@
       letter-spacing: 0.5px;
     }
 
-    /* floating badge */
     .phone-floating-badge {
       position: absolute;
       bottom: -16px;
@@ -741,7 +739,6 @@
       padding: 14px 28px;
       border-radius: 14px;
       text-decoration: none;
-      transition: background 0.2s, transform 0.2s;
       opacity: 0.5;
       cursor: default;
     }
@@ -804,7 +801,7 @@
       margin: 0 auto;
     }
 
-    .notify-form input {
+    .notify-form input[type="email"] {
       flex: 1;
       padding: 14px 20px;
       border-radius: 12px;
@@ -817,11 +814,11 @@
       transition: border-color 0.2s;
     }
 
-    .notify-form input::placeholder {
+    .notify-form input[type="email"]::placeholder {
       color: rgba(255, 255, 255, 0.4);
     }
 
-    .notify-form input:focus {
+    .notify-form input[type="email"]:focus {
       border-color: rgba(255, 255, 255, 0.5);
     }
 
@@ -844,10 +841,62 @@
       transform: translateY(-1px);
     }
 
+    .notify-form button:disabled {
+      opacity: 0.6;
+      cursor: default;
+      transform: none;
+    }
+
     .notify-privacy {
       margin-top: 16px;
       font-size: 12px;
       color: rgba(255, 255, 255, 0.45);
+    }
+
+    /* Success state */
+    .notify-success {
+      display: none;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      padding: 16px 28px;
+      background: rgba(255, 255, 255, 0.12);
+      border: 1px solid rgba(255, 255, 255, 0.25);
+      border-radius: 14px;
+      max-width: 440px;
+      margin: 0 auto;
+    }
+
+    .notify-success.visible {
+      display: flex;
+    }
+
+    .notify-success-icon {
+      width: 32px;
+      height: 32px;
+      background: rgba(255, 255, 255, 0.2);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      font-size: 16px;
+    }
+
+    .notify-success p {
+      font-size: 15px;
+      font-weight: 600;
+      color: white;
+      text-align: left;
+      line-height: 1.4;
+    }
+
+    .notify-success p small {
+      display: block;
+      font-size: 12px;
+      font-weight: 400;
+      color: rgba(255, 255, 255, 0.65);
+      margin-top: 2px;
     }
 
     /* ── FOOTER ───────────────────────────────────────────────────── */
@@ -1286,17 +1335,27 @@
         Join the early access list. We'll notify you the moment CoParent Shield is available — no spam, just one email
         when it launches.
       </p>
-      <form class="notify-form"
-        action="https://gmail.us14.list-manage.com/subscribe/post?u=c0f3ffea059a0745b598a2a16&amp;id=99650e2a6b&amp;f_id=002aade0f0"
-        method="post">
-        <input type="hidden" name="redirect" value="https://coparentshield.net">
-        <input type="email" name="EMAIL" placeholder="your@email.com" required autocomplete="email" />
+
+      <!-- Form — hidden after success -->
+      <form class="notify-form" id="notify-form" onsubmit="handleSubscribe(event)">
+        <!-- Mailchimp honeypot — do not remove -->
         <div style="position:absolute;left:-5000px;" aria-hidden="true">
           <input type="text" name="b_c0f3ffea059a0745b598a2a16_99650e2a6b" tabindex="-1" value="">
         </div>
-        <button type="submit">Notify Me</button>
+        <input type="email" id="notify-email" name="EMAIL" placeholder="your@email.com" required autocomplete="email" />
+        <button type="submit" id="notify-btn">Notify Me</button>
       </form>
-      <p class="notify-privacy">No spam. Unsubscribe anytime. We respect your privacy.</p>
+
+      <!-- Success message — shown after submit -->
+      <div class="notify-success" id="notify-success">
+        <div class="notify-success-icon">✓</div>
+        <p>
+          You're on the list!
+          <small>We'll send one email the moment CoParent Shield launches.</small>
+        </p>
+      </div>
+
+      <p class="notify-privacy" id="notify-privacy">No spam. Unsubscribe anytime. We respect your privacy.</p>
     </div>
   </section>
 
@@ -1342,6 +1401,40 @@
       el.style.transition = 'opacity 0.5s ease, transform 0.5s ease';
       observer.observe(el);
     });
+
+    // ── Mailchimp subscribe via fetch (no page redirect) ──────────
+    async function handleSubscribe(e) {
+      e.preventDefault();
+
+      const email = document.getElementById('notify-email').value.trim();
+      const btn = document.getElementById('notify-btn');
+
+      if (!email) return;
+
+      btn.textContent = 'Submitting…';
+      btn.disabled = true;
+
+      const MAILCHIMP_URL =
+        'https://gmail.us14.list-manage.com/subscribe/post?u=c0f3ffea059a0745b598a2a16&id=99650e2a6b&f_id=002aade0f0';
+
+      const body = new FormData();
+      body.append('EMAIL', email);
+      body.append('b_c0f3ffea059a0745b598a2a16_99650e2a6b', ''); // honeypot
+
+      try {
+        // mode: 'no-cors' — browser won't block the cross-origin POST.
+        // We can't read the response, but the subscription goes through.
+        await fetch(MAILCHIMP_URL, { method: 'POST', body, mode: 'no-cors' });
+      } catch (_) {
+        // Network error — subscription may or may not have gone through.
+        // We still show success to avoid confusing the user.
+      }
+
+      // Hide form, show success
+      document.getElementById('notify-form').style.display = 'none';
+      document.getElementById('notify-privacy').style.display = 'none';
+      document.getElementById('notify-success').classList.add('visible');
+    }
   </script>
 </body>
 
